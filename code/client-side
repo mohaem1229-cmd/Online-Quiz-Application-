@@ -1,0 +1,245 @@
+# FRONTEND: important files
+
+## frontend/package.json
+
+//json
+{
+  "name": "online-quiz-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.12.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "tailwindcss": "^3.5.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
+//
+
+## frontend/src/main.jsx
+
+//jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App'
+import './index.css'
+
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+)
+//
+
+## frontend/src/App.jsx
+
+//jsx
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import QuizList from './pages/QuizList'
+import QuizPlay from './pages/QuizPlay'
+import Navbar from './components/Navbar'
+
+export default function App(){
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="container mx-auto p-4">
+        <Routes>
+          <Route path="/" element={<Home/>} />
+          <Route path="/login" element={<Login/>} />
+          <Route path="/register" element={<Register/>} />
+          <Route path="/quizzes" element={<QuizList/>} />
+          <Route path="/quizzes/:id" element={<QuizPlay/>} />
+        </Routes>
+      </div>
+    </div>
+  )
+}
+//
+
+## frontend/src/api/api.js
+
+//js
+import axios from 'axios'
+
+const API = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api' })
+
+export function setAuthToken(token){
+  if(token) API.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  else delete API.defaults.headers.common['Authorization']
+}
+
+export default API
+//
+
+## frontend/src/pages/Login.jsx
+
+//jsx
+import React, {useState} from 'react'
+import API, { setAuthToken } from '../api/api'
+import { useNavigate } from 'react-router-dom'
+
+export default function Login(){
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const nav = useNavigate()
+  const submit = async e =>{
+    e.preventDefault()
+    try{
+      const res = await API.post('/auth/login',{email,password})
+      const { token, user } = res.data
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setAuthToken(token)
+      nav('/quizzes')
+    }catch(err){
+      alert(err?.response?.data?.message || 'Login failed')
+    }
+  }
+  return (
+    <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
+      <h2 className="text-xl font-semibold mb-4">Login</h2>
+      <form onSubmit={submit}>
+        <input className="w-full p-2 border mb-3" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input type="password" className="w-full p-2 border mb-3" placeholder="Quiz Code" value={password} onChange={e=>setPassword(e.target.value)} />
+        <button className="w-full py-2 bg-blue-600 text-white rounded">Login</button>
+      </form>
+    </div>
+  )
+}
+//
+
+## frontend/src/pages/Register.jsx
+
+//jsx
+import React, {useState} from 'react'
+import API from '../api/api'
+import { useNavigate } from 'react-router-dom'
+
+export default function Register(){
+  const [email,setEmail]=useState('')
+  const [password,setPassword]=useState('')
+  const nav = useNavigate()
+  const submit = async e=>{
+    e.preventDefault()
+    try{
+      await API.post('/auth/register',{email,password})
+      alert('Registration successful. Login now.')
+      nav('/login')
+    }catch(err){
+      alert(err?.response?.data?.message || 'Registration failed')
+    }
+  }
+  return (
+    <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
+      <h2 className="text-xl font-semibold mb-4">Register</h2>
+      <form onSubmit={submit}>
+        <input className="w-full p-2 border mb-3" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input type="password" className="w-full p-2 border mb-3" placeholder="Quiz Code" value={password} onChange={e=>setPassword(e.target.value)} />
+        <button className="w-full py-2 bg-green-600 text-white rounded">Create account</button>
+      </form>
+    </div>
+  )
+}
+//
+
+## frontend/src/pages/QuizList.jsx
+
+jsx
+import React, {useEffect, useState} from 'react'
+import API from '../api/api'
+import { Link } from 'react-router-dom'
+
+export default function QuizList(){
+  const [quizzes,setQuizzes] = useState([])
+  useEffect(()=>{
+    API.get('/quizzes').then(r=>setQuizzes(r.data)).catch(()=>{})
+  },[])
+  return (
+    <div>
+      <h2 className="text-2xl mb-4">Available Quizzes</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {quizzes.map(q=> (
+          <div key={q._id} className="p-4 bg-white rounded shadow">
+            <h3 className="font-semibold">{q.title}</h3>
+            <p className="text-sm">{q.description}</p>
+            <Link to={`/quizzes/${q._id}`} className="inline-block mt-3 text-blue-600">Play</Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+//
+
+## frontend/src/pages/QuizPlay.jsx
+
+//jsx
+import React, {useEffect, useState} from 'react'
+import { useParams } from 'react-router-dom'
+import API from '../api/api'
+
+export default function QuizPlay(){
+  const { id } = useParams()
+  const [quiz,setQuiz]=useState(null)
+  const [answers,setAnswers] = useState({})
+  useEffect(()=>{ API.get(`/quizzes/${id}`).then(r=>setQuiz(r.data)).catch(()=>{}) },[id])
+
+  const toggle = (qIndex, choiceIndex)=>{
+    setAnswers(prev=>({ ...prev, [qIndex]: choiceIndex }))
+  }
+
+  const submit = async ()=>{
+    const payload = { answers }
+    try{
+      const res = await API.post(`/quizzes/${id}/submit`, payload)
+      alert(`Score: ${res.data.score}`)
+    }catch(err){
+      alert('Submit failed')
+    }
+  }
+
+  if(!quiz) return <div>Loading...</div>
+  return (
+    <div className="bg-white p-6 rounded shadow">
+      <h2 className="text-xl font-semibold">{quiz.title}</h2>
+      {quiz.questions.map((q,qi)=> (
+        <div key={qi} className="mt-4">
+          <p className="font-medium">{qi+1}. {q.text}</p>
+          <div className="mt-2 space-y-2">
+            {q.choices.map((c,ci)=> (
+              <div key={ci}>
+                <label className="inline-flex items-center">
+                  <input type="radio" name={`q${qi}`} checked={answers[qi]===ci} onChange={()=>toggle(qi,ci)} />
+                  <span className="ml-2">{c}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button className="mt-6 bg-blue-600 text-white py-2 px-4 rounded" onClick={submit}>Submit Quiz</button>
+    </div>
+  )
+}
+//
+
+///
